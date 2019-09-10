@@ -46,6 +46,8 @@ class MeterController extends Controller
      * @param Request $request
      * @return MeterResource
      * @throws ResourceNotFoundException
+     * @throws \App\Exceptions\BusinessErrorException
+     * @throws \App\Exceptions\UnAuthorizationException
      * @throws \Illuminate\Validation\ValidationException
      */
     public function search(Request $request)
@@ -60,9 +62,14 @@ class MeterController extends Controller
 
         $meter = $this->client->searchMeter($request['meterCode']);
 
+        \Log::info('MeterController: Search Successful', [
+            'meter_code'        => $meter->getMeterCode(),
+            'tenant' => $meter->getLandlord(),
+        ]);
+
         Redis::set($meter->getInternalId(), serialize($meter));
 
-        \Log::info('MeterController: Search Successful', [
+        \Log::info('MeterController: Meter saved to cache successfully', [
             'meter_code'        => $meter->getMeterCode(),
             'internal_id' => $meter->getInternalId(),
         ]);
