@@ -21,10 +21,7 @@ class HexcellClient
      */
     protected $meter;
 
-    /**
-     * @var \GuzzleHttp\Client
-     */
-    protected $httpClient;
+    protected $cookieFile = '/tmp/cookie.txt';
 
     /**
      * @param Meter $meter
@@ -32,7 +29,6 @@ class HexcellClient
     public function __construct(Meter $meter)
     {
         $this->meter      = $meter;
-        $this->httpClient = $this->getHttpClient();
     }
 
     /**
@@ -48,13 +44,40 @@ class HexcellClient
 
         $this->login();
 
-        try {
-            $response = $this->httpClient->request('GET', $hexcellUrl . HtmlSelectors::$MeterSearchUrl . "?id=$meterCode&nflag=1");
-        } catch (GuzzleException $e) {
+
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_PORT => "8088",
+            CURLOPT_URL => "http://58.60.230.219:8088/Common/GetRegMeterByMeterCode?id=$meterCode&nflag=1",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_COOKIEJAR => $this->cookieFile,
+            CURLOPT_COOKIEFILE => $this->cookieFile,
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => array(
+                "Accept: */*",
+                "Accept-Encoding: gzip, deflate",
+                "Cache-Control: no-cache",
+                "Connection: keep-alive",
+                "cache-control: no-cache"
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+
+        curl_close($curl);
+
+        if ($err) {
             throw new BusinessErrorException('Meter Search Error');
         }
 
-        $response = json_decode($response->getBody()->getContents());
+        $response = json_decode($response);
 
         if (empty($response)) {
             throw new ResourceNotFoundException(Meter::class, $meterCode);
@@ -96,6 +119,12 @@ class HexcellClient
 
         $this->login();
 
+
+
+
+
+
+
         try {
             $response = $this->httpClient->request('GET', $hexcellUrl . HtmlSelectors::$TokenGenerateUrl . "?cid=$meter_id&amt=$amount&qt=$energy&nflag=1");
             $response = $response->getBody()->getContents();
@@ -112,16 +141,6 @@ class HexcellClient
     }
 
     /**
-     * @return \GuzzleHttp\Client
-     */
-    public function getHttpClient()
-    {
-        return new \GuzzleHttp\Client([
-            'cookies' => true,
-        ]);
-    }
-
-    /**
      * @throws UnAuthorizationException
      */
     public function login()
@@ -130,9 +149,31 @@ class HexcellClient
         $username   = config('app.hexcell_credentials.username');
         $password   = config('app.hexcell_credentials.password');
 
-        try {
-            $this->httpClient->request('GET', $hexcellUrl . HtmlSelectors::$LoginUrl . "?id=$username&pwd=$password");
-        } catch (GuzzleException $exception) {
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_PORT => "8088",
+            CURLOPT_URL => $hexcellUrl . "/Login/VerifyLoginUser?id=$username&pwd=$password",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_COOKIEJAR => $this->cookieFile,
+            CURLOPT_COOKIEFILE => $this->cookieFile,
+            CURLOPT_HTTPHEADER => array(
+                "cache-control: no-cache"
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+
+        curl_close($curl);
+
+        if ($err) {
             throw new UnAuthorizationException("Login Error for [$username]");
         }
 
