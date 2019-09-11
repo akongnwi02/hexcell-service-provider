@@ -5,9 +5,9 @@ return [
 
         'client'  => 'predis',
         'default' => [
-            'host'     => env('CACHE_HOST', 'redis'),
+            'host'     => env('CACHE_HOST', 'mysql'),
             'password' => env('CACHE_PASSWORD', null),
-            'port'     => env('CACHE_PORT', 6379),
+            'port'     => env('CACHE_PORT', 3306),
             'database' => 0,
         ],
 

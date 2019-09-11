@@ -6,6 +6,7 @@ use App\Exceptions\ConnectionException;
 use App\Http\Resources\TransactionResource;
 use App\Rules\HexcellCode;
 use App\Services\Constants;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Services\HexcellClient;
 use App\Http\Resources\MeterResource;
@@ -67,7 +68,7 @@ class MeterController extends Controller
             'tenant' => $meter->getLandlord(),
         ]);
 
-        Redis::set($meter->getInternalId(), serialize($meter));
+        \Cache::put($meter->getInternalId(), $meter, Carbon::now()->addMinutes(10));
 
         \Log::info('MeterController: Meter saved to cache successfully', [
             'meter_code'        => $meter->getMeterCode(),
@@ -83,8 +84,10 @@ class MeterController extends Controller
      * @return TransactionResource
      * @throws ConnectionException
      * @throws ResourceNotFoundException
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws \App\Exceptions\BusinessErrorException
      * @throws \App\Exceptions\TokenGenerationException
+     * @throws \App\Exceptions\UnAuthorizationException
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function token(Request $request)
     {
@@ -100,11 +103,11 @@ class MeterController extends Controller
             ]
         );
 
-        $meter = unserialize(Redis::get($request['internalId']));
+        $meter = \Cache::get($request['internalId']);
 
         $transaction = $this->repository->create($meter, $request->input());
 
-        Redis::del($request['internalId']);
+        \Cache::forget($request['internalId']);
 
         $token = $this->client->generateToken([
             'meterId' => $transaction->meter_id,
